@@ -66,6 +66,9 @@ const STATE = {
     isRunning: false,
     completedPomodoros: 0,  // 今日完成的番茄数
     currentStreak: 0,       // 连续番茄（用于长休息判断）
+    // 时间戳计时相关（解决后台标签页计时不准的问题）
+    timerStartTime: null,   // Date.now() 开始时刻
+    timeLeftAtStart: 0,     // 开始时的剩余秒数
 };
 
 // ---- 默认设置 ----
@@ -189,6 +192,11 @@ function updateDisplay() {
     const progress = STATE.timeLeft / STATE.totalTime;
     const offset = circumference * (1 - progress);
     DOM.progressBar.style.strokeDashoffset = offset;
+
+    // 更新页面标题，后台标签页也能看到剩余时间
+    const modeEmoji = { pomodoro: '🍅', shortBreak: '☕', longBreak: '🌿' };
+    const prefix = STATE.isRunning ? (modeEmoji[STATE.mode] || '🍅') : '⏸';
+    document.title = `${prefix} ${m}:${s} - 番茄钟`;
 }
 
 function updateStatus() {
@@ -207,21 +215,27 @@ function updateStatus() {
 }
 
 function tick() {
-    if (STATE.timeLeft <= 0) {
-        // 时间到了！
-        clearInterval(STATE.timer);
-        STATE.timer = null;
-        STATE.isRunning = false;
-        DOM.startBtn.style.display = 'inline-block';
-        DOM.pauseBtn.style.display = 'none';
-        onTimerComplete();
-        return;
-    }
-    STATE.timeLeft--;
+    // 用时间戳计算实际流逝时间，不受浏览器后台节流影响
+    const elapsed = Math.floor((Date.now() - STATE.timerStartTime) / 1000);
+    const remaining = Math.max(0, STATE.timeLeftAtStart - elapsed);
+    STATE.timeLeft = remaining;
+
     updateDisplay();
 
     // 闪烁冒号
     DOM.sep.classList.toggle('hidden', STATE.timeLeft % 2 === 0);
+
+    if (STATE.timeLeft <= 0) {
+        // 时间到了！
+        clearInterval(STATE.timer);
+        STATE.timer = null;
+        STATE.timerStartTime = null;
+        STATE.isRunning = false;
+        DOM.startBtn.style.display = 'inline-block';
+        DOM.pauseBtn.style.display = 'none';
+        DOM.sep.classList.remove('hidden');
+        onTimerComplete();
+    }
 }
 
 function startTimer() {
@@ -232,10 +246,12 @@ function startTimer() {
         return;
     }
     STATE.isRunning = true;
+    STATE.timerStartTime = Date.now();
+    STATE.timeLeftAtStart = STATE.timeLeft;
     DOM.startBtn.style.display = 'none';
     DOM.pauseBtn.style.display = 'inline-block';
     updateStatus();
-    STATE.timer = setInterval(tick, 1000);
+    STATE.timer = setInterval(tick, 200); // 用 200ms 更频繁更新，减少延迟感
 }
 
 function pauseTimer() {
@@ -243,9 +259,14 @@ function pauseTimer() {
     clearInterval(STATE.timer);
     STATE.timer = null;
     STATE.isRunning = false;
+    // 用时间戳重新计算精确的剩余时间
+    const elapsed = Math.floor((Date.now() - STATE.timerStartTime) / 1000);
+    STATE.timeLeft = Math.max(0, STATE.timeLeftAtStart - elapsed);
+    STATE.timerStartTime = null;
     DOM.startBtn.style.display = 'inline-block';
     DOM.pauseBtn.style.display = 'none';
     DOM.sep.classList.remove('hidden');
+    updateDisplay();
     updateStatus();
 }
 
@@ -254,6 +275,7 @@ function resetTimer() {
     STATE.timer = null;
     STATE.isRunning = false;
     STATE.timeLeft = STATE.totalTime;
+    STATE.timerStartTime = null;
     DOM.startBtn.style.display = 'inline-block';
     DOM.pauseBtn.style.display = 'none';
     DOM.sep.classList.remove('hidden');
@@ -298,6 +320,7 @@ function switchMode(mode) {
     clearInterval(STATE.timer);
     STATE.timer = null;
     STATE.isRunning = false;
+    STATE.timerStartTime = null;
     STATE.mode = mode;
     STATE.totalTime = getModeDuration(mode);
     STATE.timeLeft = STATE.totalTime;
@@ -617,6 +640,28 @@ function init() {
 
     // 主题
     DOM.themeToggle.addEventListener('click', toggleTheme);
+
+    // ---- 后台标签页校准（浏览器切回来时自动纠正时间） ----
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && STATE.isRunning && STATE.timerStartTime) {
+            // 切回页面时，立即用时间戳刷新剩余时间
+            const elapsed = Math.floor((Date.now() - STATE.timerStartTime) / 1000);
+            STATE.timeLeft = Math.max(0, STATE.timeLeftAtStart - elapsed);
+            updateDisplay();
+
+            // 如果已归零，触发完成
+            if (STATE.timeLeft <= 0) {
+                clearInterval(STATE.timer);
+                STATE.timer = null;
+                STATE.timerStartTime = null;
+                STATE.isRunning = false;
+                DOM.startBtn.style.display = 'inline-block';
+                DOM.pauseBtn.style.display = 'none';
+                DOM.sep.classList.remove('hidden');
+                onTimerComplete();
+            }
+        }
+    });
 
     // ESC 关闭弹窗
     document.addEventListener('keydown', e => {
