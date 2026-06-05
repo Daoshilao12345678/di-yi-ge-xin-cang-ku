@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍅 番茄钟</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部栏 -->
+        <header>
+            <div class="logo">
+                <span class="logo-icon">🍅</span>
+                <h1>番茄钟</h1>
+            </div>
+            <div class="header-actions">
+                <button id="themeToggle" class="icon-btn" title="切换主题">🌙</button>
+                <button id="statsToggle" class="icon-btn" title="统计">📊</button>
+                <button id="settingsToggle" class="icon-btn" title="设置">⚙️</button>
+            </div>
+        </header>
+
+        <!-- 模式选择 -->
+        <div class="mode-selector">
+            <button class="mode-btn active" data-mode="pomodoro">🍅 专注</button>
+            <button class="mode-btn" data-mode="shortBreak">☕ 短休</button>
+            <button class="mode-btn" data-mode="longBreak">🌿 长休</button>
+        </div>
+
+        <!-- 倒计时 -->
+        <div class="timer-section">
+            <div class="timer-ring">
+                <svg class="progress-ring" viewBox="0 0 320 320">
+                    <circle class="progress-bg" cx="160" cy="160" r="145" />
+                    <circle class="progress-bar" cx="160" cy="160" r="145" />
+                </svg>
+                <div class="timer-display">
+                    <span id="timerMinutes">25</span>
+                    <span class="timer-sep">:</span>
+                    <span id="timerSeconds">00</span>
+                </div>
+            </div>
+            <div class="timer-status" id="timerStatus">准备就绪</div>
+        </div>
+
+        <!-- 控制按钮 -->
+        <div class="controls">
+            <button id="startBtn" class="primary-btn">开始</button>
+            <button id="pauseBtn" class="secondary-btn" style="display:none">暂停</button>
+            <button id="resetBtn" class="secondary-btn">重置</button>
+            <button id="skipBtn" class="text-btn" title="跳过当前阶段">⏭ 跳过</button>
+        </div>
+
+        <!-- 计数 -->
+        <div class="pomodoro-count" id="pomodoroCount">
+            <span>今日完成：<strong id="completedCount">0</strong> 个番茄</span>
+            <div class="count-dots" id="countDots"></div>
+        </div>
+
+        <!-- 任务列表 -->
+        <div class="task-section">
+            <div class="task-header">
+                <h3>📋 今日任务</h3>
+                <span class="task-progress" id="taskProgress">0/0</span>
+            </div>
+            <div class="task-input-group">
+                <input type="text" id="taskInput" placeholder="添加新任务，按回车确认..." />
+                <button id="addTaskBtn" class="add-btn">＋</button>
+            </div>
+            <ul class="task-list" id="taskList"></ul>
+        </div>
+    </div>
+
+    <!-- 统计弹窗 -->
+    <div class="modal-overlay" id="statsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📊 统计</h2>
+                <button class="modal-close" id="statsClose">&times;</button>
+            </div>
+            <div class="modal-body stats-body">
+                <div class="stat-card">
+                    <span class="stat-value" id="statToday">0</span>
+                    <span class="stat-label">今日番茄</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="statWeek">0</span>
+                    <span class="stat-label">本周</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="statTotal">0</span>
+                    <span class="stat-label">总计</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="statFocusTime">0h</span>
+                    <span class="stat-label">专注时长</span>
+                </div>
+                <div class="stat-chart" id="statChart">
+                    <div class="chart-placeholder">本周数据将显示在这里</div>
+                </div>
+                <button id="resetStatsBtn" class="danger-btn">重置统计</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>⚙️ 设置</h2>
+                <button class="modal-close" id="settingsClose">&times;</button>
+            </div>
+            <div class="modal-body settings-body">
+                <div class="setting-group">
+                    <label>🍅 专注时长（分）</label>
+                    <input type="number" id="settingPomodoro" min="1" max="120" value="25" />
+                </div>
+                <div class="setting-group">
+                    <label>☕ 短休息（分）</label>
+                    <input type="number" id="settingShortBreak" min="1" max="60" value="5" />
+                </div>
+                <div class="setting-group">
+                    <label>🌿 长休息（分）</label>
+                    <input type="number" id="settingLongBreak" min="1" max="120" value="15" />
+                </div>
+                <div class="setting-group">
+                    <label>🔁 长休息间隔（番茄数）</label>
+                    <input type="number" id="settingLongInterval" min="1" max="10" value="4" />
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="settingNotification" checked />
+                        🔔 完成时通知
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="settingSound" checked />
+                        🔊 完成时播放提示音
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="settingAutoStart" />
+                        ⏯️ 自动开始下一个
+                    </label>
+                </div>
+                <button id="saveSettings" class="primary-btn" style="width:100%;margin-top:12px">保存设置</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
